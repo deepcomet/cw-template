@@ -1,1 +1,6 @@
-meta/
+justfile
+dprint.json
+rustfmt.toml
+.gitignore
+__gen__/
+__test__/

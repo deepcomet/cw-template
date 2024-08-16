@@ -41,19 +41,19 @@ impl Into<StdError> for Error {
 /// Trait for conversions between result types.
 pub trait IntoResult<T, E> {
   /// Convert result to target type.
-  fn into_res(self) -> Result<T, E>;
+  fn into_result(self) -> Result<T, E>;
 }
 
 impl<T> IntoResult<T, StdError> for Result<T, Error> {
   /// Convert contract result to CosmWasm standard result.
-  fn into_res(self) -> StdResult<T> {
+  fn into_result(self) -> StdResult<T> {
     self.map_err(Into::into)
   }
 }
 
 impl<T> IntoResult<T, Error> for StdResult<T> {
   /// Convert CosmWasm standard result to contract result.
-  fn into_res(self) -> Result<T, Error> {
+  fn into_result(self) -> Result<T, Error> {
     self.map_err(Error::Std)
   }
 }

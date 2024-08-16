@@ -1,59 +1,83 @@
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-use cw2::set_contract_version;
+use cosmwasm_std::{
+  to_json_binary, Addr, Coin, CosmosMsg, CustomQuery, Querier, QuerierWrapper, StdResult,
+  WasmMsg, WasmQuery
+};
+use cosmwasm_schema::cw_serde;
+use serde::de::DeserializeOwned;
 
-use crate::cfg::CfgMsg;
-use crate::error::Result;
-use crate::exec::{set_cfg, ExecMsg};
-use crate::query::{cfg, QueryMsg};
-use crate::state::CFG;
+use crate::{ConfigMsg, ExecMsg, QueryMsg};
 
-/// Contract name (cargo package name).
-const CONTRACT_NAME: &str = "crates.io:{{project-name}}";
-/// Contract version (cargo package version).
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// Contract instantiate entrypoint.
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn instantiate(
-  mut deps: DepsMut,
-  _env: Env,
-  info: MessageInfo,
-  msg: CfgMsg,
-) -> Result<Response> {
-  set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-  set_cfg(
-    &mut deps,
-    &msg,
-    Some(
-      Response::default()
-        .add_attribute("method", "instantiate")
-        .add_attribute("sender", info.sender.to_string())
-        .add_attribute("name", CONTRACT_NAME)
-        .add_attribute("version", CONTRACT_VERSION),
-    ),
-  )
+/// API wrapper provides helper functions for interacting with the contract.
+#[cw_serde]
+pub struct {{project-name-pascal}} {
+  /// Contract address.
+  pub addr: Addr,
 }
 
-/// Contract execute entrypoint.
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(mut deps: DepsMut, _env: Env, info: MessageInfo, msg: ExecMsg) -> Result<Response> {
-  let res = Response::default()
-    .add_attribute("method", "execute")
-    .add_attribute("sender", info.sender.to_string());
-  match msg {
-    ExecMsg::SetCfg(m) => {
-      CFG.load(deps.storage)?.authorize_admin(&info.sender)?;
-      set_cfg(&mut deps, &m, Some(res))
-    }
+impl {{project-name-pascal}} {
+  // ======= EXEC =======
+  /// Create an execute message in the proper format from the given data. See [`ExecMsg`].
+  /// 
+  /// # Examples
+  /// 
+  /// ```
+  /// let exec_msg = {{crate_name}}::ExecMsg::Configure({{crate_name}}::ConfigMsg::default());
+  /// let contract: {{crate_name}}::{{project-name-pascal}} = cosmwasm_std::Addr::unchecked("example123abc").into();
+  /// let cosmos_msg = contract.exec(exec_msg, vec![]).unwrap();
+  /// let cosmwasm_std::CosmosMsg::Wasm(cosmwasm_std::WasmMsg::Execute { contract_addr, funds, .. }) =
+  ///   cosmos_msg else { panic!("Unable to parse message") };
+  /// assert_eq!(contract_addr, contract.addr.to_string());
+  /// assert_eq!(funds, vec![]);
+  /// ```
+  pub fn exec<T: Into<ExecMsg>>(&self, msg: T, funds: Vec<Coin>) -> StdResult<CosmosMsg> {
+    Ok(
+      WasmMsg::Execute {
+        contract_addr: self.addr.to_string(),
+        msg: to_json_binary(&msg.into())?,
+        funds,
+      }
+      .into(),
+    )
+  }
+
+  /// Create message for [`ExecMsg::Configure`].
+  pub fn configure(&self, msg: ConfigMsg) -> StdResult<CosmosMsg> {
+    self.exec(ExecMsg::Configure(msg), vec![])
+  }
+
+  // ======= QUERY =======
+  /// Perform given query. See [`QueryMsg`].
+  pub fn query<Q: Querier, C: CustomQuery, R: DeserializeOwned>(
+    &self,
+    querier: &Q,
+    msg: &QueryMsg,
+  ) -> StdResult<R> {
+    QuerierWrapper::<C>::new(querier).query::<R>(
+      &WasmQuery::Smart {
+        contract_addr: self.addr.to_string(),
+        msg: to_json_binary(msg)?,
+      }
+      .into(),
+    )
+  }
+
+  /// See [`QueryMsg::Config`].
+  pub fn config<Q: Querier, C: CustomQuery>(&self, querier: &Q) -> StdResult<ConfigMsg> {
+    self.query::<Q, C, ConfigMsg>(querier, &QueryMsg::Config {})
   }
 }
 
-/// Contract query entrypoint.
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-  match msg {
-    QueryMsg::Cfg {} => to_json_binary(&cfg(&deps)?),
+impl From<Addr> for {{project-name-pascal}} {
+  /// Convert an address to a contract API wrapper.
+  /// 
+  /// # Examples
+  /// 
+  /// ```
+  /// let addr = cosmwasm_std::Addr::unchecked("example123abc");
+  /// let contract: {{crate_name}}::{{project-name-pascal}} = addr.clone().into();
+  /// assert_eq!(contract.addr, addr);
+  /// ```
+  fn from(addr: Addr) -> Self {
+    Self { addr }
   }
 }

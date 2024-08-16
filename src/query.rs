@@ -1,19 +1,30 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Deps, StdResult};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, Storage};
 
-use crate::cfg::CfgMsg;
-use crate::state::CFG;
+use crate::state::get_config;
+use crate::{ConfigMsg, IntoResult};
 
 /// Contract query message.
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-  /// Returns the active contract config.
-  #[returns(CfgMsg)]
-  Cfg {},
+  /// Query the contract config.
+  ///
+  /// See implementation: [`config`].
+  #[returns(ConfigMsg)]
+  Config {},
 }
 
-/// Query config implementation.
-pub fn cfg(deps: &Deps) -> StdResult<CfgMsg> {
-  Ok(CFG.load(deps.storage)?.into())
+impl QueryMsg {
+  /// Perform the query
+  pub fn query(self, storage: &dyn Storage) -> StdResult<Binary> {
+    match self {
+      QueryMsg::Config {} => to_json_binary(&config(storage)?),
+    }
+  }
+}
+
+/// Implementation of [`QueryMsg::Config`].
+fn config(storage: &dyn Storage) -> StdResult<ConfigMsg> {
+  get_config(storage).map(Into::into).into_result()
 }

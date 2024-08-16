@@ -1,9 +1,9 @@
-use {{crate_name}}::{cfg::CfgMsg, exec::ExecMsg, query::QueryMsg};
+use {{crate_name}}::{ExecMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_schema::write_api;
 
 fn main() {
   write_api! {
-    instantiate: CfgMsg,
+    instantiate: InstantiateMsg,
     execute: ExecMsg,
     query: QueryMsg,
   }
